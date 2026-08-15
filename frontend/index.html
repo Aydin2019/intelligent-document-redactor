@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Intelligent Document Redactor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f4f6f9;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a2744;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    header p  { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }
+
+    .badge {
+      background: #e63946;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 36px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1a2744;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid #e8eaf0; }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 8px 18px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #888;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab-btn.active { color: #1a2744; border-bottom-color: #1a2744; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      resize: vertical;
+      border: 1px solid #dde1ea;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.9rem;
+      font-family: 'Consolas', monospace;
+      line-height: 1.5;
+      color: #333;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { outline: none; border-color: #1a2744; }
+
+    .upload-zone {
+      border: 2px dashed #c0c6d4;
+      border-radius: 8px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      background: #eef0f8;
+      border-color: #1a2744;
+    }
+
+    .upload-zone p { font-size: 0.85rem; color: #888; margin-top: 8px; }
+    .upload-zone .upload-icon { font-size: 2.2rem; }
+
+    #file-input { display: none; }
+    #file-name { font-size: 0.8rem; color: #555; margin-top: 8px; font-style: italic; }
+
+    .btn-primary {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px;
+      background: #1a2744;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover { background: #253560; }
+    .btn-primary:disabled { background: #a0a8b8; cursor: not-allowed; }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Config row */
+    .config-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .config-row label { font-size: 0.82rem; color: #555; font-weight: 500; }
+
+    .config-row input[type="text"] {
+      flex: 1;
+      min-width: 200px;
+      border: 1px solid #dde1ea;
+      border-radius: 5px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+    }
+
+    /* Output area */
+    .result-text {
+      width: 100%;
+      height: 200px;
+      resize: vertical;
+      border: 1px solid #dde1ea;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.9rem;
+      font-family: 'Consolas', monospace;
+      line-height: 1.5;
+      background: #f9fafb;
+      color: #222;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .stat-chip {
+      background: #eef0f8;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      color: #1a2744;
+      font-weight: 600;
+    }
+
+    .btn-secondary {
+      margin-top: 12px;
+      padding: 9px 18px;
+      background: #fff;
+      color: #1a2744;
+      border: 1.5px solid #1a2744;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-secondary:hover { background: #f0f2fa; }
+    .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Entity log */
+    .entity-log { margin-top: 24px; }
+    .entity-log h2 { font-size: 0.85rem; color: #1a2744; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+
+    .entity-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .entity-table th {
+      background: #f0f2fa;
+      color: #1a2744;
+      padding: 7px 10px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid #dde1ea;
+    }
+
+    .entity-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #f0f2fa;
+      color: #444;
+      vertical-align: top;
+      word-break: break-word;
+    }
+
+    .entity-table tr:last-child td { border-bottom: none; }
+
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #fff;
+    }
+
+    /* Error / info */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .alert.error   { background: #ffe5e5; color: #c0392b; border-left: 4px solid #c0392b; }
+    .alert.success { background: #e5f9f0; color: #1a7a4a; border-left: 4px solid #27ae60; }
+    .alert.show    { display: block; }
+
+    .placeholder-text { color: #bbb; font-style: italic; font-size: 0.85rem; text-align: center; padding: 40px 0; }
+
+    .doc-id { font-size: 0.72rem; color: #aaa; margin-top: 6px; font-family: monospace; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🛡️ Intelligent Document Redactor</h1>
+    <p>Powered by Amazon Comprehend &amp; AWS Chalice</p>
+  </div>
+  <span class="badge">COMP 264</span>
+</header>
+
+<main>
+  <!-- LEFT: Input -->
+  <div class="card">
+    <h2>Input Document</h2>
+
+    <div class="config-row">
+      <label>API URL:</label>
+      <input type="text" id="api-url" value="http://localhost:8000" placeholder="https://your-api-id.execute-api.us-east-1.amazonaws.com/api" />
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('text')">📄 Paste Text</button>
+      <button class="tab-btn" onclick="switchTab('image')">🖼️ Upload Image</button>
+    </div>
+
+    <!-- Text tab -->
+    <div id="tab-text" class="tab-panel active">
+      <textarea id="input-text" placeholder="Paste your document here...&#10;&#10;Example: John Smith, DOB 1985-03-22, SIN 123-456-789, lives at 456 Oak Avenue, Toronto ON M5V 2J9. Contact: john.smith@email.com or (416) 555-0192."></textarea>
+    </div>
+
+    <!-- Image tab -->
+    <div id="tab-image" class="tab-panel">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">📂</div>
+        <strong>Click to upload or drag &amp; drop</strong>
+        <p>Supported: PNG, JPEG (max 5MB). Text will be extracted via Amazon Textract.</p>
+      </div>
+      <input type="file" id="file-input" accept=".png,.jpg,.jpeg" />
+      <div id="file-name">No file selected</div>
+    </div>
+
+    <button class="btn-primary" id="redact-btn" onclick="submitRedact()">
+      <span class="spinner" id="spinner"></span>
+      <span id="btn-label">Redact Document</span>
+    </button>
+  </div>
+
+  <!-- RIGHT: Output -->
+  <div class="card">
+    <h2>Redacted Output</h2>
+    <div id="output-placeholder" class="placeholder-text">
+      Redacted document will appear here after processing.
+    </div>
+    <div id="output-section" style="display:none;">
+      <textarea class="result-text" id="output-text" readonly></textarea>
+      <div class="doc-id" id="doc-id-label"></div>
+      <div class="stats-row">
+        <div class="stat-chip" id="stat-entities">0 entities redacted</div>
+        <div class="stat-chip" id="stat-chars">0 chars processed</div>
+      </div>
+      <button class="btn-secondary" id="download-btn" onclick="downloadRedacted()">⬇ Download Redacted Text</button>
+      <button class="btn-secondary" style="margin-left:8px;" onclick="copyRedacted()">📋 Copy</button>
+
+      <div class="entity-log" id="entity-log">
+        <h2>Redaction Log</h2>
+        <table class="entity-table" id="entity-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Original Value</th>
+              <th>Placeholder</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="entity-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ------------------------------------------------------------------ State
+  let currentMode = "text";
+  let selectedFile = null;
+  let lastRedactedText = "";
+
+  // ------------------------------------------------------------------ Tabs
+  function switchTab(mode) {
+    currentMode = mode;
+    document.querySelectorAll(".tab-btn").forEach((b, i) => {
+      b.classList.toggle("active", (i === 0 && mode === "text") || (i === 1 && mode === "image"));
+    });
+    document.getElementById("tab-text").classList.toggle("active", mode === "text");
+    document.getElementById("tab-image").classList.toggle("active", mode === "image");
+  }
+
+  // ------------------------------------------------------------------ File upload
+  const fileInput = document.getElementById("file-input");
+  const uploadZone = document.getElementById("upload-zone");
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length > 0) {
+      selectedFile = fileInput.files[0];
+      document.getElementById("file-name").textContent = selectedFile.name;
+    }
+  });
+
+  uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("dragover"); });
+  uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("dragover"));
+  uploadZone.addEventListener("drop", e => {
+    e.preventDefault();
+    uploadZone.classList.remove("dragover");
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      selectedFile = file;
+      document.getElementById("file-name").textContent = file.name;
+    }
+  });
+
+  // ------------------------------------------------------------------ Main submit
+  async function submitRedact() {
+    const apiUrl = document.getElementById("api-url").value.trim().replace(/\/$/, "");
+    clearAlert();
+    setLoading(true);
+
+    try {
+      let response;
+
+      if (currentMode === "text") {
+        const text = document.getElementById("input-text").value;
+        if (!text.trim()) { showAlert("Please paste some text before redacting.", "error"); return; }
+
+        response = await fetch(`${apiUrl}/redact/text`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+      } else {
+        if (!selectedFile) { showAlert("Please select an image file first.", "error"); return; }
+        if (selectedFile.size > 5 * 1024 * 1024) { showAlert("File must be under 5MB.", "error"); return; }
+
+        const base64 = await fileToBase64(selectedFile);
+        const mediaType = selectedFile.type || "image/jpeg";
+
+        response = await fetch(`${apiUrl}/redact/image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_base64: base64, media_type: mediaType }),
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showAlert(data.Message || data.message || "An error occurred.", "error");
+        return;
+      }
+
+      renderOutput(data, currentMode === "text" ? document.getElementById("input-text").value : data.extracted_text);
+
+    } catch (err) {
+      showAlert(`Network error: ${err.message}. Make sure the API is running and the URL is correct.`, "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ------------------------------------------------------------------ Render
+  function renderOutput(data, originalText) {
+    lastRedactedText = data.redacted_text;
+
+    document.getElementById("output-placeholder").style.display = "none";
+    document.getElementById("output-section").style.display = "block";
+    document.getElementById("output-text").value = data.redacted_text;
+    document.getElementById("doc-id-label").textContent = `Document ID: ${data.document_id}`;
+    document.getElementById("stat-entities").textContent = `${data.entities_found} entities redacted`;
+    document.getElementById("stat-chars").textContent = `${(originalText || "").length} chars processed`;
+
+    // Populate entity log
+    const tbody = document.getElementById("entity-tbody");
+    tbody.innerHTML = "";
+
+    if (!data.redaction_log || data.redaction_log.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="color:#aaa;font-style:italic;text-align:center;padding:16px;">No PII entities detected.</td></tr>`;
+    } else {
+      data.redaction_log.forEach(entry => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span class="type-badge" style="background:${typeColor(entry.type)}">${entry.type}</span></td>
+          <td>${escapeHtml(entry.original)}</td>
+          <td><code>${escapeHtml(entry.placeholder)}</code></td>
+          <td>${(entry.confidence * 100).toFixed(1)}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  // ------------------------------------------------------------------ Helpers
+  function typeColor(type) {
+    const map = {
+      NAME: "#2c7be5", ADDRESS: "#6f42c1", DATE_TIME: "#fd7e14",
+      EMAIL: "#20c997", PHONE: "#e83e8c", SSN: "#dc3545",
+      URL: "#17a2b8", AGE: "#ffc107", PASSWORD: "#343a40",
+      IP_ADDRESS: "#6610f2", BANK_ACCOUNT_NUMBER: "#e83e8c",
+    };
+    return map[type] || "#6c757d";
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function downloadRedacted() {
+    const blob = new Blob([lastRedactedText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "redacted_document.txt"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function copyRedacted() {
+    navigator.clipboard.writeText(lastRedactedText).then(() => showAlert("Copied to clipboard!", "success"));
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function setLoading(on) {
+    document.getElementById("redact-btn").disabled = on;
+    document.getElementById("spinner").style.display = on ? "block" : "none";
+    document.getElementById("btn-label").textContent = on ? "Processing..." : "Redact Document";
+  }
+
+  function showAlert(msg, type) {
+    const box = document.getElementById("alert-box");
+    box.textContent = msg;
+    box.className = `alert ${type} show`;
+  }
+
+  function clearAlert() {
+    const box = document.getElementById("alert-box");
+    box.className = "alert";
+  }
+</script>
+</body>
+</html>
